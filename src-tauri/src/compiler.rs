@@ -7,7 +7,6 @@ use std::sync::Mutex;
 use tectonic::{
     config::PersistentConfig,
     driver::{OutputFormat, ProcessingSessionBuilder},
-    status::NoopStatusBackend,
 };
 
 // Tectonic's engines have global state; serialize complete processing sessions.
@@ -25,6 +24,9 @@ pub struct CompileRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CompileResult {
     pdf_base64: String,
+    #[cfg(test)]
+    #[serde(skip)]
+    log: String,
 }
 
 #[tauri::command]
@@ -37,7 +39,10 @@ pub async fn compile_math(request: CompileRequest) -> Result<CompileResult, Stri
 fn compile(request: CompileRequest) -> Result<CompileResult, String> {
     let document = document::wrap(&request.source, &request.macros, &request.font)?;
     let _guard = COMPILER.lock().map_err(|error| error.to_string())?;
-    let mut status = NoopStatusBackend::default();
+    #[cfg(not(test))]
+    let mut status = tectonic::status::NoopStatusBackend::default();
+    #[cfg(test)]
+    let mut status = tectonic::status::plain::PlainStatusBackend::default();
     let config = PersistentConfig::open(false)
         .map_err(|error| format!("Compiler configuration: {error:#}"))?;
     let bundle = config.default_bundle(false).map_err(|error| format!("TeX resources could not be loaded. The first compilation needs an internet connection.\n{error:#}"))?;
@@ -76,12 +81,68 @@ fn compile(request: CompileRequest) -> Result<CompileResult, String> {
         .ok_or_else(|| format!("The compiler did not produce a PDF.\n{log}"))?;
     Ok(CompileResult {
         pdf_base64: STANDARD.encode(pdf.data),
+        #[cfg(test)]
+        log,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "downloads TeX resources on first run; use cargo test -- --ignored"]
+    fn real_engine_sections_share_macros_and_have_separate_pages() {
+        for font in ["latin-modern", "pagella", "termes"] {
+            let result = compile(CompileRequest {
+                source: "%---\n% empty\n%---\n\\foo{x}\n\n+ 1\n%---\n%---\n\\begin{aligned}\n\n\\foo{y} &= 2 \\\\\n z &= \\% %--- inline comment\n\\end{aligned}\n%---\n".into(),
+                macros: "\n\\newcommand{\\foo}[1]{\n\n#1^2\n}\n".into(),
+                font: font.into(),
+            }).unwrap_or_else(|error| panic!("{font}: {error}"));
+            let pdf = STANDARD.decode(result.pdf_base64).unwrap();
+            assert!(pdf.starts_with(b"%PDF-"));
+            // PDF object streams are compressed. Check the real engine's page
+            // count instead of searching binary PDF bytes for a page-tree token.
+            assert!(
+                result.log.contains("(2 pages,"),
+                "expected two cropped pages: {}",
+                result.log
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "downloads TeX resources on first run; use cargo test -- --ignored"]
+    fn real_engine_accepts_blank_lines_and_preserves_comments() {
+        let macros =
+            "\n \t\n\\newcommand{\\foo}[1]{\n\n#1^2\n \t\n}\n\n\\def\\R{\n\n\\mathbb{R}\n}\n";
+        for source in [
+            "\n\n x + 1\n \t\n",
+            "\\begin{aligned}\n\n\\foo{x} &= 1 \\\\\n \t\n\\R &\\ni x\n\n\\end{aligned}\n",
+            "\\begin{pmatrix}\n\n1 & 2 \\\\\n\n3 & 4\n \t\n\\end{pmatrix}",
+            "\\text{two\nwords} + \\% % \\nonexistentcommand is commented out\n\n + x",
+            "\\begin{aligned}x &= 1 \\\\% row comment\n\n y &= 2\\end{aligned}",
+        ] {
+            let result = compile(CompileRequest {
+                source: source.into(),
+                macros: macros.into(),
+                font: "latin-modern".into(),
+            })
+            .unwrap_or_else(|error| panic!("{source}: {error}"));
+            assert!(STANDARD
+                .decode(result.pdf_base64)
+                .unwrap()
+                .starts_with(b"%PDF-"));
+        }
+        let error = compile(CompileRequest {
+            source: "\n\n\\nonexistentcommand\n \t\n".into(),
+            macros: macros.into(),
+            font: "latin-modern".into(),
+        })
+        .err()
+        .unwrap();
+        assert!(error.contains("Undefined control sequence"));
+    }
 
     #[test]
     #[ignore = "downloads TeX resources on first run; use cargo test -- --ignored"]

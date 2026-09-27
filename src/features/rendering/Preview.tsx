@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { invoke, isTauri } from '@tauri-apps/api/core'
 import { LatestCompiler, SupersededCompilation } from './scheduler'
+import { hasMathContent } from './source'
 import type { CompileRequest, CompileResult, MathFont, PreviewLabels, PreviewStatus } from './types'
 import './preview.css'
 
@@ -11,11 +12,12 @@ export interface PreviewProps {
   source: string
   macros: string
   font: MathFont
+  fontSize?: number
   theme: 'light' | 'dark'
   labels: PreviewLabels
 }
 
-export function Preview({ source, macros, font, theme, labels }: PreviewProps) {
+export function Preview({ source, macros, font, fontSize = 18, theme, labels }: PreviewProps) {
   const [status, setStatus] = useState<PreviewStatus>('empty')
   const [result, setResult] = useState<CompileResult | null>(null)
   const [error, setError] = useState('')
@@ -23,7 +25,7 @@ export function Preview({ source, macros, font, theme, labels }: PreviewProps) {
   useEffect(() => {
     let current = true
     setError('')
-    if (!source.trim()) { setStatus('empty'); setResult(null); return }
+    if (!hasMathContent(source)) { setStatus('empty'); setResult(null); return }
     if (!isTauri()) { setStatus('unavailable'); return }
     setStatus('compiling')
     const timer = window.setTimeout(() => {
@@ -46,11 +48,10 @@ export function Preview({ source, macros, font, theme, labels }: PreviewProps) {
     {status === 'compiling' && <div className="math-preview__progress" role="status">
       <span>{labels.compiling}{!hasCompiled && <small>{labels.firstCompile}</small>}</span>
     </div>}
-    {result && <Suspense fallback={null}><PdfCanvas label={labels.page} base64={result.pdfBase64} onError={message => { setError(message); setStatus('error') }} /></Suspense>}
+    {result && <Suspense fallback={null}><PdfCanvas label={labels.page} base64={result.pdfBase64} fontSize={fontSize} onError={message => { setError(message); setStatus('error') }} /></Suspense>}
     {error && <details className="math-preview__error" open>
       <summary>{labels.error}</summary>
       <pre role="alert">{error}</pre>
     </details>}
   </div>
 }
-
