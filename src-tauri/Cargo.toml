@@ -1,6 +1,6 @@
 [package]
 name = "texdraft"
-version = "0.1.0"
+version = "1.0.0"
 description = "A focused desktop scratchpad for LaTeX mathematics"
 authors = ["TeXDraft contributors"]
 edition = "2021"
