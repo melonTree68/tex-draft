@@ -1,0 +1,62 @@
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config cmake libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfontconfig1-dev libfreetype6-dev libgraphite2-dev libharfbuzz-dev libicu-dev libssl-dev libpng-dev zlib1g-dev
+          echo 'TECTONIC_PKGCONFIG_FORCE_SEMI_STATIC=1' >> "$GITHUB_ENV"
+      - name: macOS native dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkgconf cmake freetype graphite2 icu4c libpng
+          echo "PKG_CONFIG_PATH=$(brew --prefix icu4c)/lib/pkgconfig" >> "$GITHUB_ENV"
+          echo 'TECTONIC_PKGCONFIG_FORCE_SEMI_STATIC=1' >> "$GITHUB_ENV"
+      - name: Windows native dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install fontconfig:x64-windows-static-md freetype:x64-windows-static-md graphite2:x64-windows-static-md icu:x64-windows-static-md libpng:x64-windows-static-md zlib:x64-windows-static-md
+          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          'VCPKGRS_TRIPLET=x64-windows-static-md' | Out-File -FilePath $env:GITHUB_ENV -Append
+          'TECTONIC_DEP_BACKEND=vcpkg' | Out-File -FilePath $env:GITHUB_ENV -Append
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Native tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Real math engine tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked -- --ignored
+      - name: Build unsigned desktop packages
+        run: npm run tauri -- build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TeXDraft-${{ matrix.os }}
+          path: src-tauri/target/release/bundle/
+          if-no-files-found: error
