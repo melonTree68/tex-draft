@@ -1,0 +1,46 @@
+:root { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:13px; color-scheme:light; --panel:#fff; --toolbar:#f5f5f5; --text:#222; --muted:#777; --border:#d6d6d6; --accent:#007aff; --field:#fff; --error:#b42318; color:var(--text); background:var(--panel); font-synthesis:none; -webkit-font-smoothing:antialiased; }
+:root[data-theme=dark] { color-scheme:dark; --panel:#1e1e1e; --toolbar:#292929; --text:#ededed; --muted:#999; --border:#414141; --accent:#0a84ff; --field:#333; --error:#ff817a; }
+* { box-sizing:border-box; }
+body { margin:0; min-width:640px; }
+button,input,select { font:inherit; color:inherit; }
+button,select,input { border:1px solid var(--border); border-radius:4px; background:var(--field); padding:3px 8px; min-width:0; }
+button { display:inline-flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap; }
+button:hover { background:var(--toolbar); }
+button:focus-visible,select:focus-visible,input:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.app-shell { height:100dvh; display:flex; flex-direction:column; }
+.workspace { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.source-pane,.preview-pane { display:flex; flex-direction:column; min-width:0; min-height:0; }
+.source-pane { border-right:1px solid var(--border); }
+.preview-pane { position:relative; }
+.macro-section { border-bottom:1px solid var(--border); flex-shrink:0; }
+.toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px; min-height:34px; padding:4px 8px; background:var(--toolbar); }
+.macro-toggle,.icon-button,.settings-button,.text-button { border:0; background:transparent; padding:4px; }
+.macro-toggle svg { width:12px; height:12px; }
+.expanded .macro-toggle svg { transform:rotate(90deg); }
+.preset-controls { display:flex; align-items:center; gap:4px; min-width:0; }
+.preset-controls select { max-width:150px; }
+.preset-controls button,.preset-controls select { font-size:11px; }
+.macro-editor { height:112px; min-height:48px; max-height:35vh; resize:vertical; overflow:auto; }
+.math-editor { flex:1; min-height:0; overflow:hidden; }
+.math-editor>.math-editor,.macro-editor>.math-editor { height:100%; }
+.preview-content { flex:1; min-height:0; overflow:auto; }
+.settings-button { position:absolute; top:6px; right:6px; color:var(--muted); }
+.save-error { margin:0; padding:6px 10px; border-top:1px solid var(--border); }
+dialog { width:min(480px,calc(100vw - 40px)); max-height:calc(100dvh - 40px); padding:16px; border:1px solid var(--border); border-radius:8px; background:var(--toolbar); color:var(--text); }
+dialog::backdrop { background:#0003; }
+.dialog-heading,.shortcuts-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+h2,h3 { margin:0; font-size:13px; font-weight:600; }
+.dialog-heading { margin-bottom:16px; }
+.settings-grid { display:grid; gap:10px; }
+.settings-grid label,.name-field { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.settings-grid select,.name-field input { width:230px; }
+.shortcuts-heading { margin-top:20px; }
+.shortcut-hint,.dialog-description { color:var(--muted); font-size:12px; line-height:1.5; }
+.shortcut-list { max-height:240px; overflow:auto; }
+.shortcut-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:3px 0; font-size:12px; }
+.shortcut-row input { width:170px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.primary { background:var(--accent); border-color:var(--accent); color:white; }
+.primary:hover { background:var(--accent); }
+.danger,.error-text { color:var(--error); }
+.error-text { font-size:12px; }
