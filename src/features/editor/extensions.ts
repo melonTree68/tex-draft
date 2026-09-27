@@ -24,15 +24,15 @@ export const closeEnvironment: Extension = EditorView.inputHandler.of((view, fro
   return true;
 });
 
-export function editorTheme(dark: boolean) {
+export function editorTheme(dark: boolean, fontSize = 14, activeLineHighlight = 4, cursorBlink = true) {
   return EditorView.theme({
-    '&': { height: '100%', backgroundColor: 'transparent', color: dark ? '#ededed' : '#222222', fontSize: '14px' },
+    '&': { height: '100%', backgroundColor: 'transparent', color: dark ? '#ededed' : '#222222', fontSize: `${fontSize}px` },
     '.cm-scroller': { overflow: 'auto', fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace', lineHeight: '1.5' },
-    '.cm-content': { padding: '8px 0', minHeight: '100%', caretColor: dark ? '#ededed' : '#222222' },
+    '.cm-content': { padding: '8px 0', minHeight: '100%', caretColor: dark ? '#ededed' : '#222222', caretAnimation: cursorBlink ? 'auto' : 'manual' },
     '.cm-line': { padding: '0 18px 0 8px' },
     '.cm-gutters': { backgroundColor: 'transparent', color: '#888888', border: 'none' },
     '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 16px' },
-    '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: dark ? '#ffffff05' : '#00000004' },
+    '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: `rgba(${dark ? '255, 255, 255' : '0, 0, 0'}, ${activeLineHighlight / 100})` },
     '&.cm-focused': { outline: 'none' },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: dark ? '#264f78 !important' : '#b5d5ff !important' },
     '.cm-cursor': { borderLeftColor: dark ? '#ededed' : '#222222' },
