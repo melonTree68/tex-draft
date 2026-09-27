@@ -10,14 +10,18 @@ button:focus-visible,select:focus-visible,input:focus-visible { outline:2px soli
 .app-shell { height:100dvh; display:flex; flex-direction:column; }
 .workspace { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
 .source-pane,.preview-pane { display:flex; flex-direction:column; min-width:0; min-height:0; }
-.source-pane { border-right:1px solid var(--border); }
+ .pane-separator { position:relative; background:var(--border); cursor:col-resize; touch-action:none; z-index:2; }
+.pane-separator::after { content:''; position:absolute; top:0; bottom:0; left:-4px; width:9px; }
+.pane-separator:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.workspace--resizing { cursor:col-resize; user-select:none; }
+.workspace--resizing .cm-content { user-select:none; }
 .preview-pane { position:relative; }
 .macro-section { border-bottom:1px solid var(--border); flex-shrink:0; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px; min-height:34px; padding:4px 8px; background:var(--toolbar); }
 .macro-toggle,.icon-button,.settings-button,.text-button { border:0; background:transparent; padding:4px; }
 .macro-toggle svg { width:12px; height:12px; }
 .expanded .macro-toggle svg { transform:rotate(90deg); }
-.preset-controls { display:flex; align-items:center; gap:4px; min-width:0; }
+.preset-controls { display:flex; flex-wrap:wrap; align-items:center; gap:4px; min-width:0; }
 .preset-controls select { max-width:150px; }
 .preset-controls button,.preset-controls select { font-size:11px; }
 .macro-editor { height:112px; min-height:48px; max-height:35vh; resize:vertical; overflow:auto; }
@@ -44,3 +48,13 @@ h2,h3 { margin:0; font-size:13px; font-weight:600; }
 .primary:hover { background:var(--accent); }
 .danger,.error-text { color:var(--error); }
 .error-text { font-size:12px; }
+
+.settings-grid input[type=number] { width:90px; }
+.settings-grid input[type=checkbox] { margin:0; }
+.range-setting { display:flex; align-items:center; gap:8px; width:230px; }
+.range-setting input { flex:1; min-width:0; padding:0; }
+.range-setting output { width:32px; text-align:right; font-variant-numeric:tabular-nums; }
+.shortcut-controls { display:flex; align-items:center; gap:4px; }
+.shortcut-row input { width:132px; }
+.record-button { min-width:48px; font-size:11px; padding:3px 5px; }
+.record-button[aria-pressed=true] { color:var(--accent); border-color:var(--accent); }
