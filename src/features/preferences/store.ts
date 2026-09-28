@@ -2,9 +2,9 @@ import { sanitizeKeybindings } from '../editor/commands';
 export type Locale = 'en' | 'zh';
 export type Theme = 'light' | 'dark' | 'system';
 export type Font = 'latin-modern' | 'pagella' | 'termes';
-export interface Preferences { locale: Locale; theme: Theme; font: Font; keybindings: Record<string,string>; codeFontSize:number; previewFontSize:number; cursorBlink:boolean; activeLineHighlight:number; paneRatio:number }
+export interface Preferences { locale: Locale; theme: Theme; font: Font; keybindings: Record<string,string>; codeFontSize:number; previewFontSize:number; cursorBlink:boolean; activeLineHighlight:number; paneRatio:number; macroHeight:number }
 export interface Draft { source: string; macros: string }
-export const defaultPreferences: Preferences = { locale: 'en', theme: 'system', font: 'latin-modern', keybindings: {}, codeFontSize:14, previewFontSize:18, cursorBlink:true, activeLineHighlight:4, paneRatio:0.5 };
+export const defaultPreferences: Preferences = { locale: 'en', theme: 'system', font: 'latin-modern', keybindings: {}, codeFontSize:14, previewFontSize:18, cursorBlink:true, activeLineHighlight:4, paneRatio:0.5, macroHeight:112 };
 export const STORAGE_KEYS = { preferences: 'texdraft.preferences.v1', draft: 'texdraft.draft.v1', presets: 'texdraft.presets.v1' };
 export function readJson(storage: Pick<Storage,'getItem'>, key: string): unknown { try { return JSON.parse(storage.getItem(key) ?? 'null'); } catch { return null; } }
 export function saveJson(storage: Pick<Storage,'setItem'>, key: string, value: unknown): boolean { try { storage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } }
@@ -19,6 +19,7 @@ export function loadPreferences(storage: Pick<Storage,'getItem'>): Preferences {
     codeFontSize:numberPreference(item?.codeFontSize,14,8,32), previewFontSize:numberPreference(item?.previewFontSize,18,8,64),
     cursorBlink:typeof item?.cursorBlink==='boolean'?item.cursorBlink:true,
     activeLineHighlight:numberPreference(item?.activeLineHighlight,4,0,30), paneRatio:numberPreference(item?.paneRatio,0.5,0.1,0.9),
+    macroHeight:numberPreference(item?.macroHeight,112,48,10000),
   };
 }
 export function loadDraft(storage: Pick<Storage,'getItem'>): Draft {

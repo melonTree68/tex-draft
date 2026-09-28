@@ -8,6 +8,8 @@ let host:HTMLDivElement,root:Root;
 beforeEach(()=>{
  localStorage.clear();
  Object.defineProperty(HTMLElement.prototype,'clientWidth',{configurable:true,get:()=>1000});
+ Object.defineProperty(HTMLElement.prototype,'clientHeight',{configurable:true,get:()=>700});
+ Object.defineProperty(HTMLElement.prototype,'offsetHeight',{configurable:true,get:()=>34});
  Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true,ResizeObserver:class {observe(){}disconnect(){}},matchMedia:()=>({matches:false,addEventListener(){},removeEventListener(){}})});
  HTMLDialogElement.prototype.showModal=function(){this.open=true;};
  HTMLDialogElement.prototype.close=function(){this.open=false;};
@@ -44,7 +46,7 @@ describe('separator pointer interaction',()=>{
  it('ignores secondary clicks and drags with pointer capture, snapping near center',()=>{
   const main=host.querySelector('main')!;
   main.getBoundingClientRect=()=>({left:0,width:1000} as DOMRect);
-  const separator=host.querySelector<HTMLElement>('[role=separator]')!;
+  const separator=host.querySelector<HTMLElement>('[role=separator][aria-orientation=vertical]')!;
   separator.setPointerCapture=vi.fn();separator.releasePointerCapture=vi.fn();
   const pointer=(type:string,clientX:number,button=0)=>{const event=new MouseEvent(type,{bubbles:true,cancelable:true,button,clientX});Object.defineProperty(event,'pointerId',{value:7});act(()=>separator.dispatchEvent(event));};
   pointer('pointerdown',500,2);pointer('pointermove',650);expect(separator.getAttribute('aria-valuenow')).toBe('50');
@@ -69,5 +71,31 @@ describe('fixed shortcut preference migration', () => {
   act(() => host.querySelector<HTMLButtonElement>('.dialog-actions .primary')!.click());
   expect(host.querySelector('[role=alert]')).toBeNull();
   expect(host.querySelector('dialog')?.open).toBe(false);
+ });
+});
+
+describe('macro separator interaction',()=>{
+ it('drags with primary capture, snaps to default and preserves height across folding and reload',()=>{
+  const toolbar=host.querySelector<HTMLElement>('.toolbar')!;
+  toolbar.getBoundingClientRect=()=>({bottom:34} as DOMRect);
+  const separator=host.querySelector<HTMLElement>('.macro-separator')!;
+  separator.setPointerCapture=vi.fn();separator.releasePointerCapture=vi.fn();
+  const pointer=(type:string,clientY:number,button=0)=>{const event=new MouseEvent(type,{bubbles:true,cancelable:true,button,clientY});Object.defineProperty(event,'pointerId',{value:8});act(()=>separator.dispatchEvent(event));};
+  pointer('pointerdown',146,2);pointer('pointermove',300);expect(separator.getAttribute('aria-valuenow')).toBe('112');
+  pointer('pointerdown',146);pointer('pointermove',334);expect(separator.getAttribute('aria-valuenow')).toBe('300');expect(separator.setPointerCapture).toHaveBeenCalledWith(8);
+  pointer('pointermove',153);expect(separator.getAttribute('aria-valuenow')).toBe('112');
+  pointer('pointermove',334);pointer('pointerup',334);expect(separator.releasePointerCapture).toHaveBeenCalledWith(8);
+  const macro=host.querySelector('.macro-editor');
+  act(()=>host.querySelector<HTMLButtonElement>('.macro-toggle')!.click());expect(host.querySelector('.macro-separator')).toBeNull();expect(host.querySelector('.macro-editor')).toBe(macro);
+  act(()=>host.querySelector<HTMLButtonElement>('.macro-toggle')!.click());expect(host.querySelector('.macro-separator')?.getAttribute('aria-valuenow')).toBe('300');
+  act(()=>root.unmount());root=createRoot(host);act(()=>root.render(<App/>));expect(host.querySelector('.macro-separator')?.getAttribute('aria-valuenow')).toBe('300');
+ });
+ it('supports keyboard bounds and reset, and releases drag state on cancel',()=>{
+  const separator=host.querySelector<HTMLElement>('.macro-separator')!;
+  const press=(key:string)=>act(()=>separator.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true})));
+  press('ArrowDown');expect(separator.getAttribute('aria-valuenow')).toBe('122');press('Home');expect(separator.getAttribute('aria-valuenow')).toBe('48');press('End');expect(separator.getAttribute('aria-valuenow')).toBe('569');press('Enter');expect(separator.getAttribute('aria-valuenow')).toBe('112');
+  separator.setPointerCapture=vi.fn();
+  act(()=>separator.dispatchEvent(new MouseEvent('pointerdown',{bubbles:true,button:0})));expect(host.querySelector('main')?.className).toContain('workspace--resizing-rows');
+  act(()=>separator.dispatchEvent(new MouseEvent('pointercancel',{bubbles:true})));expect(host.querySelector('main')?.className).not.toContain('workspace--resizing-rows');
  });
 });

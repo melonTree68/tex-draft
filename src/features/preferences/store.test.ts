@@ -17,3 +17,9 @@ it('cleans up obsolete line commands and reserved chords without losing valid cu
   saveJson(localStorage, STORAGE_KEYS.preferences, { keybindings: { insertBlankLineAbove: 'F8', selectAll: 'Mod-Shift-Enter', deleteLine: 'Mod-Enter', insertFormulaSeparator: 'F9', find: 'Mod-f', undo: '' } });
   expect(loadPreferences(localStorage).keybindings).toEqual({ insertFormulaSeparator: 'F9', find: 'Mod-f', undo: '' });
 });
+
+it('restores macro height independently and migrates older preferences',()=>{
+ saveJson(localStorage,STORAGE_KEYS.preferences,{locale:'en',macroHeight:300});expect(loadPreferences(localStorage).macroHeight).toBe(300);
+ saveJson(localStorage,STORAGE_KEYS.preferences,{locale:'en',macroHeight:'bad'});expect(loadPreferences(localStorage).macroHeight).toBe(112);
+ saveJson(localStorage,STORAGE_KEYS.preferences,{locale:'en',macroHeight:-5});expect(loadPreferences(localStorage).macroHeight).toBe(48);
+});

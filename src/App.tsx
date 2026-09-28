@@ -5,7 +5,7 @@ import { loadDraft, loadPreferences, readJson, saveJson, STORAGE_KEYS } from './
 import type { Preferences } from './features/preferences/store';
 import { addPreset, parsePresets, renamePreset } from './features/presets/store';
 import { messages } from './i18n';
-import { clampSplit, draggedSplit, splitBounds } from './features/layout/split';
+import { clampSplit, draggedSplit, splitBounds, DEFAULT_MACRO_HEIGHT, clampMacroHeight, draggedMacroHeight, macroHeightBounds } from './features/layout/split';
 
 function Icon({name}:{name:'settings'|'chevron'|'close'}) {
  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{name==='settings'?<><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--panel)"/><circle cx="15" cy="17" r="3" fill="var(--panel)"/></>:name==='chevron'?<path d="m9 5 7 7-7 7"/>:<path d="m6 6 12 12M18 6 6 18"/>}</svg>;
@@ -31,6 +31,11 @@ export default function App() {
  const [recording,setRecording] = useState<string|null>(null);
  const [workspaceWidth,setWorkspaceWidth] = useState(960);
  const [dragging,setDragging] = useState(false);
+ const [macroAvailableHeight,setMacroAvailableHeight]=useState(600);
+ const [macroDragging,setMacroDragging]=useState(false);
+ const sourcePane=useRef<HTMLElement>(null);
+ const macroToolbar=useRef<HTMLDivElement>(null);
+ const macroDragPointer=useRef<number|null>(null);
  const workspace = useRef<HTMLElement>(null);
  const dragPointer = useRef<number|null>(null);
  const modal = useRef<HTMLDialogElement>(null);
@@ -47,8 +52,9 @@ export default function App() {
  useEffect(()=> {
   const element=workspace.current;
   if(!element) return;
-  const observer=new ResizeObserver(()=>setWorkspaceWidth(element.clientWidth));
-  setWorkspaceWidth(element.clientWidth); observer.observe(element); return ()=>observer.disconnect();
+  const update=()=>{setWorkspaceWidth(element.clientWidth);setMacroAvailableHeight(Math.max(0,(sourcePane.current?.clientHeight??0)-(macroToolbar.current?.offsetHeight??0)-1));};
+  const observer=new ResizeObserver(update);
+  update(); observer.observe(element); if(macroToolbar.current)observer.observe(macroToolbar.current); return ()=>observer.disconnect();
  },[]);
  useEffect(()=> {
   const onKey=(event:KeyboardEvent)=> {
@@ -70,6 +76,9 @@ export default function App() {
  });
  useEffect(()=> {if(dialog!=='settings')setRecording(null);},[dialog]);
  const moveSplit=(clientX:number)=> {const rect=workspace.current?.getBoundingClientRect();if(rect)pref('paneRatio',draggedSplit(clientX-rect.left,rect.width));};
+ const moveMacroSplit=(clientY:number)=>{const toolbar=macroToolbar.current?.getBoundingClientRect();if(toolbar)pref('macroHeight',draggedMacroHeight(clientY-toolbar.bottom,macroAvailableHeight));};
+ const macroHeight=clampMacroHeight(prefs.macroHeight,macroAvailableHeight);
+ const [minimumMacroHeight,maximumMacroHeight]=macroHeightBounds(macroAvailableHeight);
  const ratio=clampSplit(prefs.paneRatio,workspaceWidth);
  const [minimumRatio,maximumRatio]=splitBounds(workspaceWidth);
  const submitPreset = ()=> { try { if(dialog==='save') { const id=crypto.randomUUID(); setPresets(addPreset(presets,name,draft.macros,id)); setSelected(id); } else setPresets(renamePreset(presets,selected,name)); setDialog(null); } catch { setNameError(true); } };
@@ -81,10 +90,10 @@ export default function App() {
  };
  const currentPreset=presets.find(p=>p.id===selected);
  return <div className="app-shell">
-  <main ref={workspace} className={`workspace ${dragging?'workspace--resizing':''}`} style={{gridTemplateColumns:`minmax(0, ${ratio}fr) 1px minmax(0, ${1-ratio}fr)`}}>
-   <section className="source-pane" aria-label={t.source}>
+  <main ref={workspace} className={`workspace ${dragging?'workspace--resizing':''} ${macroDragging?'workspace--resizing-rows':''}`} style={{gridTemplateColumns:`minmax(0, ${ratio}fr) 1px minmax(0, ${1-ratio}fr)`}}>
+   <section ref={sourcePane} className="source-pane" aria-label={t.source}>
     <section className={`macro-section ${expanded?'expanded':''}`}>
-     <div className="toolbar">
+     <div ref={macroToolbar} className="toolbar">
       <button className="macro-toggle" aria-expanded={expanded} aria-label={expanded?t.collapseMacros:t.expandMacros} onClick={()=>setExpanded(!expanded)}><Icon name="chevron"/>{t.macros}</button>
       <div className="preset-controls">
        {presets.length>0&&<select aria-label={t.presets} value={selected} onChange={e=>{const p=presets.find(p=>p.id===e.target.value);setSelected(e.target.value);if(p)setDraft(d=>({...d,macros:p.macros}));}}><option value="">{t.selectPreset}</option>{presets.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>}
@@ -92,8 +101,16 @@ export default function App() {
        {currentPreset&&<><button onClick={()=>open('rename')}>{t.rename}</button><button onClick={()=>open('delete')}>{t.delete}</button></>}
       </div>
      </div>
-     <div hidden={!expanded} className="macro-editor"><MathEditor locale={prefs.locale} mode="macros" value={draft.macros} onChange={macros=>setDraft(d=>({...d,macros}))} theme={theme} keybindings={prefs.keybindings} fontSize={prefs.codeFontSize} cursorBlink={prefs.cursorBlink} activeLineHighlight={prefs.activeLineHighlight} ariaLabel={t.macrosLabel}/></div>
+     <div hidden={!expanded} className="macro-editor" style={{height:macroHeight}}><MathEditor locale={prefs.locale} mode="macros" value={draft.macros} onChange={macros=>setDraft(d=>({...d,macros}))} theme={theme} keybindings={prefs.keybindings} fontSize={prefs.codeFontSize} cursorBlink={prefs.cursorBlink} activeLineHighlight={prefs.activeLineHighlight} ariaLabel={t.macrosLabel}/></div>
     </section>
+    {expanded&&<div className="macro-separator" role="separator" tabIndex={0} aria-label={t.resizeMacros} aria-orientation="horizontal" aria-valuemin={Math.round(minimumMacroHeight)} aria-valuemax={Math.round(maximumMacroHeight)} aria-valuenow={Math.round(macroHeight)}
+     onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();macroDragPointer.current=event.pointerId;event.currentTarget.setPointerCapture(event.pointerId);setMacroDragging(true);}}
+     onPointerMove={event=>{if(macroDragPointer.current===event.pointerId)moveMacroSplit(event.clientY);}}
+     onPointerUp={event=>{if(macroDragPointer.current===event.pointerId){macroDragPointer.current=null;event.currentTarget.releasePointerCapture(event.pointerId);setMacroDragging(false);}}}
+     onPointerCancel={()=>{macroDragPointer.current=null;setMacroDragging(false);}}
+     onLostPointerCapture={()=>{macroDragPointer.current=null;setMacroDragging(false);}}
+     onDoubleClick={()=>pref('macroHeight',DEFAULT_MACRO_HEIGHT)}
+     onKeyDown={event=>{let next:number;if(event.key==='ArrowUp')next=macroHeight-10;else if(event.key==='ArrowDown')next=macroHeight+10;else if(event.key==='Home')next=minimumMacroHeight;else if(event.key==='End')next=maximumMacroHeight;else if(event.key==='Enter')next=DEFAULT_MACRO_HEIGHT;else return;event.preventDefault();pref('macroHeight',clampMacroHeight(next,macroAvailableHeight));}}/>}
     <div className="math-editor"><MathEditor locale={prefs.locale} mode="math" value={draft.source} onChange={source=>setDraft(d=>({...d,source}))} theme={theme} keybindings={prefs.keybindings} fontSize={prefs.codeFontSize} cursorBlink={prefs.cursorBlink} activeLineHighlight={prefs.activeLineHighlight} ariaLabel={t.editorLabel} macros={draft.macros}/></div>
    </section>
    <div className="pane-separator" role="separator" tabIndex={0} aria-label={t.resizePanes} aria-orientation="vertical" aria-valuemin={Math.round(minimumRatio*100)} aria-valuemax={Math.round(maximumRatio*100)} aria-valuenow={Math.round(ratio*100)}
