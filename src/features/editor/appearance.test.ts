@@ -6,6 +6,12 @@ import { EditorView } from '@codemirror/view';
 import { undo } from '@codemirror/commands';
 import { MathEditor } from './MathEditor';
 
+// jsdom has no text geometry; CodeMirror measures ranges on animation frames.
+Object.assign(Range.prototype, {
+  getClientRects: () => [],
+  getBoundingClientRect: () => new DOMRect(),
+});
+
 it('reconfigures appearance while retaining view, selection, focus, and undo history', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.body.appendChild(document.createElement('div'));

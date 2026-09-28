@@ -20,3 +20,5 @@ Run `npm test -- src/features/editor` and `npm run typecheck`. Tests exercise ac
 ## Common issues
 
 Legacy `insertBlankLineAbove` preferences are removed by `sanitizeKeybindings`; fixed line chords are also rejected through aliases by canonical validation. Default keymaps can silently retain an old remapped shortcut. Filter owned commands from fallback keymaps. Place the environment input handler before automatic bracket handling so a typed closing brace is observed.
+
+In jsdom appearance tests, mock `Range.getClientRects` and `Range.getBoundingClientRect`: CodeMirror measures text asynchronously on animation frames, so missing geometry APIs cause timing-dependent unhandled errors despite passing assertions.
